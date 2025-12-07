@@ -1,0 +1,28 @@
+# Ambientes virtuales
+.venv/
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Datos generados (IMPORTANTE: no subir esto)
+upscholar_data_tfidf/
+upscholar_data_llm/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Dataset (si es muy grande)
+# data/*.csv
