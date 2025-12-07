@@ -6,6 +6,9 @@ Módulo de búsqueda con Embeddings LLM (MPNet) para UPScholar
 import pandas as pd
 import numpy as np
 import os
+import time
+import re
+import difflib
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -18,6 +21,73 @@ doc = None
 model = None
 embeddings = None
 sim_matrix = None
+vocab_corpus = None  # Nuevo: vocabulario para sugerencias
+
+# ======================================================================
+# FUNCIONES PARA SUGERENCIAS
+# ======================================================================
+
+def extraer_vocabulario_corpus():
+    """Extrae todas las palabras únicas del corpus para sugerencias"""
+    global doc, vocab_corpus
+    
+    if vocab_corpus is not None:
+        return vocab_corpus
+    
+    if doc is None:
+        return set()
+    
+    vocab_corpus = set()
+    
+    # Extraer palabras de abstracts (sin procesar, palabras originales)
+    for text in doc['abstract'].fillna(''):
+        palabras = re.sub(r'[^a-zA-Z\s]', ' ', str(text)).lower().split()
+        vocab_corpus.update(palabras)
+    
+    for text in doc['keywords'].fillna(''):
+        palabras = re.sub(r'[^a-zA-Z\s]', ' ', str(text)).lower().split()
+        vocab_corpus.update(palabras)
+    
+    for text in doc['title'].fillna(''):
+        palabras = re.sub(r'[^a-zA-Z\s]', ' ', str(text)).lower().split()
+        vocab_corpus.update(palabras)
+    
+    # Filtrar palabras muy cortas
+    vocab_corpus = {p for p in vocab_corpus if len(p) >= 3}
+    
+    return vocab_corpus
+
+def sugerir_palabras(query, n=5):
+    """
+    Sugiere palabras similares si la query no tiene resultados
+    
+    Args:
+        query (str): Consulta del usuario
+        n (int): Número máximo de sugerencias por palabra
+        
+    Returns:
+        list: Lista de sugerencias en formato "palabra_incorrecta → sugerencia"
+    """
+    vocab = extraer_vocabulario_corpus()
+    
+    if not vocab:
+        return []
+    
+    palabras_query = re.sub(r'[^a-zA-Z\s]', ' ', query).lower().split()
+    sugerencias = []
+    
+    for palabra in palabras_query:
+        if len(palabra) < 3:  # Ignorar palabras muy cortas
+            continue
+        
+        # Buscar palabras similares en el vocabulario
+        matches = difflib.get_close_matches(palabra, vocab, n=n, cutoff=0.6)
+        
+        # Si la palabra no está en el vocabulario pero hay matches
+        if matches and palabra not in vocab:
+            sugerencias.append(f"{palabra} → {matches[0]}")
+    
+    return sugerencias[:5]  # Limitar a 5 sugerencias totales
 
 # ======================================================================
 # FUNCIONES PÚBLICAS PARA STREAMLIT
@@ -29,7 +99,6 @@ def cargar_dataset(csv_path='data/ICMLA_2014_2015_2016_2017.csv'):
     if doc is None:
         doc = pd.read_csv(csv_path, encoding="latin1")
     return doc
-
 
 def inicializar_llm(csv_path='data/ICMLA_2014_2015_2016_2017.csv'):
     """
@@ -72,6 +141,9 @@ def inicializar_llm(csv_path='data/ICMLA_2014_2015_2016_2017.csv'):
         np.save(EMBEDDINGS_FILE, embeddings)
         np.save(SIM_MATRIX_FILE, sim_matrix)
         
+        # Extraer vocabulario para sugerencias
+        extraer_vocabulario_corpus()
+        
         return "✅ Embeddings LLM generados y guardados exitosamente", True
         
     else:
@@ -85,8 +157,10 @@ def inicializar_llm(csv_path='data/ICMLA_2014_2015_2016_2017.csv'):
         
         sim_matrix = np.load(SIM_MATRIX_FILE)
         
+        # Extraer vocabulario para sugerencias
+        extraer_vocabulario_corpus()
+        
         return "✅ Embeddings LLM cargados exitosamente", True
-
 
 def buscar_llm(query, threshold_minimo=0.05):
     """
@@ -97,9 +171,11 @@ def buscar_llm(query, threshold_minimo=0.05):
         threshold_minimo (float): Similitud mínima para considerar que hay resultados (default: 0.05)
         
     Returns:
-        tuple: (idx_top10, similitudes, tiene_resultados)
+        tuple: (idx_top10, similitudes, tiene_resultados, tiempo_ms, sugerencias)
     """
     global model, embeddings
+    
+    inicio = time.time()  # Iniciar cronómetro
     
     # Generar embedding de la query
     query_vec = model.encode([query], normalize_embeddings=True)[0]
@@ -113,14 +189,15 @@ def buscar_llm(query, threshold_minimo=0.05):
     # Verificar si el MEJOR resultado supera el threshold mínimo
     mejor_similitud = similitudes[idx_top10[0]]
     
+    tiempo_ms = (time.time() - inicio) * 1000  # Convertir a milisegundos
+    
     if mejor_similitud < threshold_minimo:
-        # Todos los resultados son extremadamente malos
-        return np.array([]), similitudes, False
+        # Generar sugerencias
+        sugerencias = sugerir_palabras(query)
+        return np.array([]), similitudes, False, tiempo_ms, sugerencias
     
     # Hay al menos un resultado decente, retornar los 10 mejores
-    return idx_top10, similitudes, True
-
-
+    return idx_top10, similitudes, True, tiempo_ms, []
 
 def recomendar_llm(idx_articulo, idx_top10):
     """
@@ -146,7 +223,6 @@ def recomendar_llm(idx_articulo, idx_top10):
     candidatos = sorted(candidatos, key=lambda x: x[1], reverse=True)[:3]
     
     return candidatos
-
 
 def get_dataset():
     """Retorna el dataset cargado"""

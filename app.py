@@ -52,6 +52,25 @@ st.markdown("""
         border-radius: 0.3rem;
         font-weight: bold;
     }
+    .time-badge {
+        display: inline-block;
+        background-color: #E3F2FD;
+        color: #1976D2;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-left: 0.5rem;
+    }
+    .search-badge {
+        background-color: #E8F5E9;
+        color: #2E7D32;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+        display: inline-block;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -77,6 +96,16 @@ def inicializar_sistemas():
 
 # Inicializar sistemas
 status = inicializar_sistemas()
+
+# Inicializar session_state
+if 'ultima_busqueda_tfidf' not in st.session_state:
+    st.session_state.ultima_busqueda_tfidf = None
+if 'ultima_busqueda_llm' not in st.session_state:
+    st.session_state.ultima_busqueda_llm = None
+if 'desde_sugerencia_tfidf' not in st.session_state:
+    st.session_state.desde_sugerencia_tfidf = False
+if 'desde_sugerencia_llm' not in st.session_state:
+    st.session_state.desde_sugerencia_llm = False
 
 # ======================================================================
 # HEADER PRINCIPAL
@@ -141,7 +170,7 @@ with tab1:
     st.header("Búsqueda con Matriz Ponderada (TF-IDF + Jaccard)")
     st.markdown("Combina similitud TF-IDF en abstracts con Jaccard en keywords y títulos")
     
-    # Usar formulario para permitir Enter
+    # Formulario de búsqueda
     with st.form(key="form_tfidf"):
         query_tfidf = st.text_input(
             "Ingrese su consulta:",
@@ -150,18 +179,58 @@ with tab1:
         
         btn_tfidf = st.form_submit_button("Buscar", use_container_width=False)
     
+    # Capturar query desde formulario
     if btn_tfidf and query_tfidf:
-        st.info(f"Buscando: **{query_tfidf}**")
+        st.session_state.ultima_busqueda_tfidf = query_tfidf
+        st.session_state.desde_sugerencia_tfidf = False
+    
+    # EJECUTAR BÚSQUEDA (desde formulario O desde session_state)
+    if st.session_state.ultima_busqueda_tfidf:
+        query_final = st.session_state.ultima_busqueda_tfidf
+        
+        # Mostrar qué se está buscando (especialmente si viene de sugerencia)
+        if st.session_state.desde_sugerencia_tfidf:
+            st.markdown(
+                f'<div class="search-badge">🔍 Buscando: <strong>{query_final}</strong></div>',
+                unsafe_allow_html=True
+            )
+            st.session_state.desde_sugerencia_tfidf = False
         
         with st.spinner("Procesando búsqueda con TF-IDF..."):
             try:
-                idx_top10, similitudes, tiene_resultados = metodo_tfidf.buscar_tfidf(query_tfidf)
+                idx_top10, similitudes, tiene_resultados, tiempo_ms, sugerencias = metodo_tfidf.buscar_tfidf(query_final)
                 
                 if not tiene_resultados:
-                    st.warning("No se encontraron artículos relevantes para su consulta. Intente con otros términos más relacionados al dominio científico.")
+                    st.warning("No se encontraron artículos relevantes para su consulta.")
+                    
+                    # Mostrar sugerencias como texto clickeable
+                    if sugerencias:
+                        st.info("**¿Quisiste decir?** Haz clic en una sugerencia para buscarla:")
+                        
+                        # Crear botones que parecen texto
+                        for i, sug in enumerate(sugerencias):
+                            palabra_incorrecta = sug.split(" → ")[0] if " → " in sug else ""
+                            palabra_sugerida = sug.split(" → ")[1] if " → " in sug else sug
+                            
+                            if st.button(f"{palabra_incorrecta} → {palabra_sugerida}", 
+                                       key=f"sug_tfidf_{i}", 
+                                       use_container_width=False,
+                                       type="secondary"):
+                                # Actualizar la búsqueda con la palabra sugerida
+                                st.session_state.ultima_busqueda_tfidf = palabra_sugerida
+                                st.session_state.desde_sugerencia_tfidf = True
+                                st.rerun()
                 else:
                     doc = metodo_tfidf.get_dataset()
-                    st.success(f"Se encontraron {len(idx_top10)} artículos relevantes")
+                    
+                    # Mensaje de éxito con tiempo inline
+                    st.markdown(
+                        f'<p style="color: #4CAF50; font-size: 1rem; margin-bottom: 0.5rem;">'
+                        f'✅ Se encontraron {len(idx_top10)} artículos relevantes '
+                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
+                        f'</p>',
+                        unsafe_allow_html=True
+                    )
                     
                     st.subheader("Top 10 Artículos Más Similares")
                     
@@ -199,9 +268,6 @@ with tab1:
                 
             except Exception as e:
                 st.error(f"Error en la búsqueda: {str(e)}")
-    
-    elif btn_tfidf:
-        st.warning("Por favor ingrese una consulta")
 
 # ======================================================================
 # TAB 2: MÉTODO LLM
@@ -210,7 +276,7 @@ with tab2:
     st.header("Búsqueda con Embeddings LLM (MPNet)")
     st.markdown("Utiliza embeddings del modelo MPNet para capturar similitud semántica")
     
-    # Usar formulario para permitir Enter
+    # Formulario de búsqueda
     with st.form(key="form_llm"):
         query_llm = st.text_input(
             "Ingrese su consulta:",
@@ -219,18 +285,58 @@ with tab2:
         
         btn_llm = st.form_submit_button("Buscar", use_container_width=False)
     
+    # Capturar query desde formulario
     if btn_llm and query_llm:
-        st.info(f"Buscando: **{query_llm}**")
+        st.session_state.ultima_busqueda_llm = query_llm
+        st.session_state.desde_sugerencia_llm = False
+    
+    # EJECUTAR BÚSQUEDA (desde formulario O desde session_state)
+    if st.session_state.ultima_busqueda_llm:
+        query_final_llm = st.session_state.ultima_busqueda_llm
+        
+        # Mostrar qué se está buscando (especialmente si viene de sugerencia)
+        if st.session_state.desde_sugerencia_llm:
+            st.markdown(
+                f'<div class="search-badge">🔍 Buscando: <strong>{query_final_llm}</strong></div>',
+                unsafe_allow_html=True
+            )
+            st.session_state.desde_sugerencia_llm = False
         
         with st.spinner("Procesando búsqueda con LLM..."):
             try:
-                idx_top10, similitudes, tiene_resultados = metodo_llm.buscar_llm(query_llm)
+                idx_top10, similitudes, tiene_resultados, tiempo_ms, sugerencias = metodo_llm.buscar_llm(query_final_llm)
                 
                 if not tiene_resultados:
-                    st.warning("No se encontraron artículos relevantes para su consulta. Intente con otros términos más relacionados al dominio científico.")
+                    st.warning("No se encontraron artículos relevantes para su consulta.")
+                    
+                    # Mostrar sugerencias como texto clickeable
+                    if sugerencias:
+                        st.info("**¿Quisiste decir?** Haz clic en una sugerencia para buscarla:")
+                        
+                        # Crear botones que parecen texto
+                        for i, sug in enumerate(sugerencias):
+                            palabra_incorrecta = sug.split(" → ")[0] if " → " in sug else ""
+                            palabra_sugerida = sug.split(" → ")[1] if " → " in sug else sug
+                            
+                            if st.button(f"{palabra_incorrecta} → {palabra_sugerida}", 
+                                       key=f"sug_llm_{i}", 
+                                       use_container_width=False,
+                                       type="secondary"):
+                                # Actualizar la búsqueda con la palabra sugerida
+                                st.session_state.ultima_busqueda_llm = palabra_sugerida
+                                st.session_state.desde_sugerencia_llm = True
+                                st.rerun()
                 else:
                     doc = metodo_llm.get_dataset()
-                    st.success(f"Se encontraron {len(idx_top10)} artículos relevantes")
+                    
+                    # Mensaje de éxito con tiempo inline
+                    st.markdown(
+                        f'<p style="color: #4CAF50; font-size: 1rem; margin-bottom: 0.5rem;">'
+                        f'✅ Se encontraron {len(idx_top10)} artículos relevantes '
+                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
+                        f'</p>',
+                        unsafe_allow_html=True
+                    )
                     
                     st.subheader("Top 10 Artículos Más Similares")
                     
@@ -268,9 +374,6 @@ with tab2:
                 
             except Exception as e:
                 st.error(f"Error en la búsqueda: {str(e)}")
-    
-    elif btn_llm:
-        st.warning("Por favor ingrese una consulta")
 
 # ======================================================================
 # TAB 3: COMPARACIÓN
@@ -291,14 +394,22 @@ with tab3:
     if btn_compare and query_compare:
         col_left, col_right = st.columns(2)
         
+        # Columna Izquierda: TF-IDF
         with col_left:
             st.subheader("TF-IDF + Jaccard")
             with st.spinner("Procesando..."):
                 try:
-                    idx_tfidf, sim_tfidf, tiene_resultados_tfidf = metodo_tfidf.buscar_tfidf(query_compare)
+                    idx_tfidf, sim_tfidf, tiene_resultados_tfidf, tiempo_tfidf, sugerencias_tfidf = metodo_tfidf.buscar_tfidf(query_compare)
+                    
+                    # Tiempo compacto
+                    st.caption(f"⏱️ {tiempo_tfidf:.2f} ms")
                     
                     if not tiene_resultados_tfidf:
                         st.warning("Sin resultados relevantes")
+                        if sugerencias_tfidf:
+                            st.caption("**Sugerencias:**")
+                            for sug in sugerencias_tfidf[:2]:
+                                st.caption(f"• {sug}")
                     else:
                         doc = metodo_tfidf.get_dataset()
                         
@@ -309,14 +420,22 @@ with tab3:
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
         
+        # Columna Derecha: LLM
         with col_right:
             st.subheader("LLM Embeddings")
             with st.spinner("Procesando..."):
                 try:
-                    idx_llm, sim_llm, tiene_resultados_llm = metodo_llm.buscar_llm(query_compare)
+                    idx_llm, sim_llm, tiene_resultados_llm, tiempo_llm, sugerencias_llm = metodo_llm.buscar_llm(query_compare)
+                    
+                    # Tiempo compacto
+                    st.caption(f"⏱️ {tiempo_llm:.2f} ms")
                     
                     if not tiene_resultados_llm:
                         st.warning("Sin resultados relevantes")
+                        if sugerencias_llm:
+                            st.caption("**Sugerencias:**")
+                            for sug in sugerencias_llm[:2]:
+                                st.caption(f"• {sug}")
                     else:
                         doc = metodo_llm.get_dataset()
                         
@@ -327,14 +446,23 @@ with tab3:
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
         
+        # Análisis de coincidencias
         if 'tiene_resultados_tfidf' in locals() and 'tiene_resultados_llm' in locals():
             if tiene_resultados_tfidf and tiene_resultados_llm:
+                st.divider()
                 st.subheader("Análisis de Coincidencias")
-                coincidencias = set(idx_tfidf) & set(idx_llm)
-                st.metric("Artículos en común (Top 10)", len(coincidencias))
+                
+                col_m1, col_m2, col_m3 = st.columns(3)
+                with col_m1:
+                    st.metric("Tiempo TF-IDF", f"{tiempo_tfidf:.0f} ms")
+                with col_m2:
+                    st.metric("Tiempo LLM", f"{tiempo_llm:.0f} ms")
+                with col_m3:
+                    coincidencias = set(idx_tfidf) & set(idx_llm)
+                    st.metric("Coincidencias", len(coincidencias))
                 
                 if coincidencias:
-                    st.success(f"Hay {len(coincidencias)} artículos que aparecen en ambos métodos")
+                    st.success(f"Hay {len(coincidencias)} artículos en común")
     
     elif btn_compare:
         st.warning("Por favor ingrese una consulta")
