@@ -34,13 +34,21 @@ streamlit run app.py
 ## Estructura del Proyecto
 
 upscholar_project/
+
 ├── backend/
+
 │ ├── metodo_tfidf.py
+
 │ └── metodo_llm.py
+
 ├── data/
+
 │ └── ICMLA_2014_2015_2016_2017.csv
+
 ├── app.py
+
 └── requirements.txt
+
 
 ## Dataset
 
