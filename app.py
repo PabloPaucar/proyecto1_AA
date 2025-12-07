@@ -141,24 +141,20 @@ with tab1:
     st.header("Búsqueda con Matriz Ponderada (TF-IDF + Jaccard)")
     st.markdown("Combina similitud TF-IDF en abstracts con Jaccard en keywords y títulos")
     
-    # Input de búsqueda
-    query_tfidf = st.text_input(
-        "Ingrese su consulta:",
-        key="query_tfidf",
-        placeholder="Ejemplo: machine learning algorithms"
-    )
-    
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        btn_tfidf = st.button("Buscar", key="btn_tfidf", use_container_width=True)
-    with col2:
-        if query_tfidf:
-            st.info(f"Buscando: **{query_tfidf}**")
+    # Usar formulario para permitir Enter
+    with st.form(key="form_tfidf"):
+        query_tfidf = st.text_input(
+            "Ingrese su consulta:",
+            placeholder="Ejemplo: machine learning algorithms"
+        )
+        
+        btn_tfidf = st.form_submit_button("Buscar", use_container_width=False)
     
     if btn_tfidf and query_tfidf:
+        st.info(f"Buscando: **{query_tfidf}**")
+        
         with st.spinner("Procesando búsqueda con TF-IDF..."):
             try:
-                # Realizar búsqueda con threshold
                 idx_top10, similitudes, tiene_resultados = metodo_tfidf.buscar_tfidf(query_tfidf)
                 
                 if not tiene_resultados:
@@ -167,7 +163,6 @@ with tab1:
                     doc = metodo_tfidf.get_dataset()
                     st.success(f"Se encontraron {len(idx_top10)} artículos relevantes")
                     
-                    # Mostrar Top 10
                     st.subheader("Top 10 Artículos Más Similares")
                     
                     for i, idx in enumerate(idx_top10, 1):
@@ -175,7 +170,6 @@ with tab1:
                             f"**#{i}** - {doc['title'].iloc[idx]}", 
                             expanded=False
                         ):
-                            # Información del artículo
                             col_a, col_b = st.columns([3, 1])
                             
                             with col_a:
@@ -185,7 +179,6 @@ with tab1:
                             with col_b:
                                 st.metric("Similitud", f"{similitudes[idx]:.4f}")
                             
-                            # Abstract
                             abstract_text = doc['abstract'].iloc[idx]
                             if len(abstract_text) > 400:
                                 st.markdown(f"**Abstract:** {abstract_text[:400]}...")
@@ -194,8 +187,7 @@ with tab1:
                             
                             st.divider()
                             
-                            # Recomendaciones
-                            st.markdown("### Artículos Recomendados")
+                            st.markdown("### Artículos Relacionados")
                             recs = metodo_tfidf.recomendar_tfidf(idx, idx_top10)
                             
                             for j, (rec_idx, score) in enumerate(recs, 1):
@@ -218,24 +210,20 @@ with tab2:
     st.header("Búsqueda con Embeddings LLM (MPNet)")
     st.markdown("Utiliza embeddings del modelo MPNet para capturar similitud semántica")
     
-    # Input de búsqueda
-    query_llm = st.text_input(
-        "Ingrese su consulta:",
-        key="query_llm",
-        placeholder="Ejemplo: deep neural networks"
-    )
-    
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        btn_llm = st.button("Buscar", key="btn_llm", use_container_width=True)
-    with col2:
-        if query_llm:
-            st.info(f"Buscando: **{query_llm}**")
+    # Usar formulario para permitir Enter
+    with st.form(key="form_llm"):
+        query_llm = st.text_input(
+            "Ingrese su consulta:",
+            placeholder="Ejemplo: deep neural networks"
+        )
+        
+        btn_llm = st.form_submit_button("Buscar", use_container_width=False)
     
     if btn_llm and query_llm:
+        st.info(f"Buscando: **{query_llm}**")
+        
         with st.spinner("Procesando búsqueda con LLM..."):
             try:
-                # Realizar búsqueda con threshold
                 idx_top10, similitudes, tiene_resultados = metodo_llm.buscar_llm(query_llm)
                 
                 if not tiene_resultados:
@@ -244,7 +232,6 @@ with tab2:
                     doc = metodo_llm.get_dataset()
                     st.success(f"Se encontraron {len(idx_top10)} artículos relevantes")
                     
-                    # Mostrar Top 10
                     st.subheader("Top 10 Artículos Más Similares")
                     
                     for i, idx in enumerate(idx_top10, 1):
@@ -252,7 +239,6 @@ with tab2:
                             f"**#{i}** - {doc['title'].iloc[idx]}", 
                             expanded=False
                         ):
-                            # Información del artículo
                             col_a, col_b = st.columns([3, 1])
                             
                             with col_a:
@@ -262,7 +248,6 @@ with tab2:
                             with col_b:
                                 st.metric("Similitud", f"{similitudes[idx]:.4f}")
                             
-                            # Abstract
                             abstract_text = doc['abstract'].iloc[idx]
                             if len(abstract_text) > 400:
                                 st.markdown(f"**Abstract:** {abstract_text[:400]}...")
@@ -271,8 +256,7 @@ with tab2:
                             
                             st.divider()
                             
-                            # Recomendaciones
-                            st.markdown("### Artículos Recomendados")
+                            st.markdown("### Artículos Relacionados")
                             recs = metodo_llm.recomendar_llm(idx, idx_top10)
                             
                             for j, (rec_idx, score) in enumerate(recs, 1):
@@ -295,66 +279,65 @@ with tab3:
     st.header("Comparación de Métodos")
     st.markdown("Compare los resultados de ambos métodos con la misma consulta")
     
-    # Input de búsqueda compartido
-    query_compare = st.text_input(
-        "Ingrese su consulta para comparar:",
-        key="query_compare",
-        placeholder="Ejemplo: classification algorithms"
-    )
+    # Usar formulario para permitir Enter
+    with st.form(key="form_compare"):
+        query_compare = st.text_input(
+            "Ingrese su consulta para comparar:",
+            placeholder="Ejemplo: classification algorithms"
+        )
+        
+        btn_compare = st.form_submit_button("Buscar con Ambos Métodos", use_container_width=False)
     
-    if st.button("Buscar con Ambos Métodos", key="btn_compare", use_container_width=True):
-        if query_compare:
-            col_left, col_right = st.columns(2)
-            
-            # Columna Izquierda: TF-IDF
-            with col_left:
-                st.subheader("TF-IDF + Jaccard")
-                with st.spinner("Procesando..."):
-                    try:
-                        idx_tfidf, sim_tfidf, tiene_resultados_tfidf = metodo_tfidf.buscar_tfidf(query_compare)
-                        
-                        if not tiene_resultados_tfidf:
-                            st.warning("Sin resultados relevantes")
-                        else:
-                            doc = metodo_tfidf.get_dataset()
-                            
-                            for i, idx in enumerate(idx_tfidf[:5], 1):  # Solo top 5
-                                st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
-                                st.caption(f"Similitud: {sim_tfidf[idx]:.4f}")
-                                st.divider()
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
-            
-            # Columna Derecha: LLM
-            with col_right:
-                st.subheader("LLM Embeddings")
-                with st.spinner("Procesando..."):
-                    try:
-                        idx_llm, sim_llm, tiene_resultados_llm = metodo_llm.buscar_llm(query_compare)
-                        
-                        if not tiene_resultados_llm:
-                            st.warning("Sin resultados relevantes")
-                        else:
-                            doc = metodo_llm.get_dataset()
-                            
-                            for i, idx in enumerate(idx_llm[:5], 1):  # Solo top 5
-                                st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
-                                st.caption(f"Similitud: {sim_llm[idx]:.4f}")
-                                st.divider()
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
-            
-            # Análisis de coincidencias (solo si ambos tienen resultados)
-            if 'tiene_resultados_tfidf' in locals() and 'tiene_resultados_llm' in locals():
-                if tiene_resultados_tfidf and tiene_resultados_llm:
-                    st.subheader("Análisis de Coincidencias")
-                    coincidencias = set(idx_tfidf) & set(idx_llm)
-                    st.metric("Artículos en común (Top 10)", len(coincidencias))
+    if btn_compare and query_compare:
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.subheader("TF-IDF + Jaccard")
+            with st.spinner("Procesando..."):
+                try:
+                    idx_tfidf, sim_tfidf, tiene_resultados_tfidf = metodo_tfidf.buscar_tfidf(query_compare)
                     
-                    if coincidencias:
-                        st.success(f"Hay {len(coincidencias)} artículos que aparecen en ambos métodos")
-        else:
-            st.warning("Por favor ingrese una consulta")
+                    if not tiene_resultados_tfidf:
+                        st.warning("Sin resultados relevantes")
+                    else:
+                        doc = metodo_tfidf.get_dataset()
+                        
+                        for i, idx in enumerate(idx_tfidf[:5], 1):
+                            st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
+                            st.caption(f"Similitud: {sim_tfidf[idx]:.4f}")
+                            st.divider()
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+        
+        with col_right:
+            st.subheader("LLM Embeddings")
+            with st.spinner("Procesando..."):
+                try:
+                    idx_llm, sim_llm, tiene_resultados_llm = metodo_llm.buscar_llm(query_compare)
+                    
+                    if not tiene_resultados_llm:
+                        st.warning("Sin resultados relevantes")
+                    else:
+                        doc = metodo_llm.get_dataset()
+                        
+                        for i, idx in enumerate(idx_llm[:5], 1):
+                            st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
+                            st.caption(f"Similitud: {sim_llm[idx]:.4f}")
+                            st.divider()
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+        
+        if 'tiene_resultados_tfidf' in locals() and 'tiene_resultados_llm' in locals():
+            if tiene_resultados_tfidf and tiene_resultados_llm:
+                st.subheader("Análisis de Coincidencias")
+                coincidencias = set(idx_tfidf) & set(idx_llm)
+                st.metric("Artículos en común (Top 10)", len(coincidencias))
+                
+                if coincidencias:
+                    st.success(f"Hay {len(coincidencias)} artículos que aparecen en ambos métodos")
+    
+    elif btn_compare:
+        st.warning("Por favor ingrese una consulta")
 
 # ======================================================================
 # FOOTER
