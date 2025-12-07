@@ -200,14 +200,31 @@ with tab1:
             try:
                 idx_top10, similitudes, tiene_resultados, tiempo_ms, sugerencias = metodo_tfidf.buscar_tfidf(query_final)
                 
-                if not tiene_resultados:
-                    st.warning("No se encontraron artículos relevantes para su consulta.")
+                # Mensaje de éxito/advertencia con tiempo
+                if tiene_resultados:
+                    st.markdown(
+                        f'<p style="color: #4CAF50; font-size: 1rem; margin-bottom: 0.5rem;">'
+                        f'✅ Se encontraron {len(idx_top10)} artículos relevantes '
+                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
+                        f'</p>',
+                        unsafe_allow_html=True
+                    )
+                else:
+                    # Baja calidad pero igual muestra resultados
+                    st.warning("⚠️ Los resultados pueden tener baja relevancia. Considera usar otras palabras clave.")
                     
-                    # Mostrar sugerencias como texto clickeable
+                    st.markdown(
+                        f'<p style="color: #FF9800; font-size: 0.9rem; margin-bottom: 0.5rem;">'
+                        f'Mostrando los {len(idx_top10)} documentos más cercanos '
+                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
+                        f'</p>',
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Mostrar sugerencias
                     if sugerencias:
                         st.info("**¿Quisiste decir?** Haz clic en una sugerencia para buscarla:")
                         
-                        # Crear botones que parecen texto
                         for i, sug in enumerate(sugerencias):
                             palabra_incorrecta = sug.split(" → ")[0] if " → " in sug else ""
                             palabra_sugerida = sug.split(" → ")[1] if " → " in sug else sug
@@ -216,55 +233,45 @@ with tab1:
                                        key=f"sug_tfidf_{i}", 
                                        use_container_width=False,
                                        type="secondary"):
-                                # Actualizar la búsqueda con la palabra sugerida
                                 st.session_state.ultima_busqueda_tfidf = palabra_sugerida
                                 st.session_state.desde_sugerencia_tfidf = True
                                 st.rerun()
-                else:
-                    doc = metodo_tfidf.get_dataset()
-                    
-                    # Mensaje de éxito con tiempo inline
-                    st.markdown(
-                        f'<p style="color: #4CAF50; font-size: 1rem; margin-bottom: 0.5rem;">'
-                        f'✅ Se encontraron {len(idx_top10)} artículos relevantes '
-                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
-                        f'</p>',
-                        unsafe_allow_html=True
-                    )
-                    
-                    st.subheader("Top 10 Artículos Más Similares")
-                    
-                    for i, idx in enumerate(idx_top10, 1):
-                        with st.expander(
-                            f"**#{i}** - {doc['title'].iloc[idx]}", 
-                            expanded=False
-                        ):
-                            col_a, col_b = st.columns([3, 1])
-                            
-                            with col_a:
-                                st.markdown(f"**Título:** {doc['title'].iloc[idx]}")
-                                st.markdown(f"**Keywords:** {doc['keywords'].iloc[idx]}")
-                            
-                            with col_b:
-                                st.metric("Similitud", f"{similitudes[idx]:.4f}")
-                            
-                            abstract_text = doc['abstract'].iloc[idx]
-                            if len(abstract_text) > 400:
-                                st.markdown(f"**Abstract:** {abstract_text[:400]}...")
-                            else:
-                                st.markdown(f"**Abstract:** {abstract_text}")
-                            
-                            st.divider()
-                            
-                            st.markdown("### Artículos Relacionados")
-                            recs = metodo_tfidf.recomendar_tfidf(idx, idx_top10)
-                            
-                            for j, (rec_idx, score) in enumerate(recs, 1):
-                                st.markdown(
-                                    f"**{j}.** {doc['title'].iloc[rec_idx]} "
-                                    f"<span class='similarity-score'>sim: {score:.4f}</span>",
-                                    unsafe_allow_html=True
-                                )
+                
+                # SIEMPRE mostrar los 10 documentos
+                doc = metodo_tfidf.get_dataset()
+                st.subheader("Top 10 Artículos Más Similares")
+                
+                for i, idx in enumerate(idx_top10, 1):
+                    with st.expander(
+                        f"**#{i}** - {doc['title'].iloc[idx]}", 
+                        expanded=False
+                    ):
+                        col_a, col_b = st.columns([3, 1])
+                        
+                        with col_a:
+                            st.markdown(f"**Título:** {doc['title'].iloc[idx]}")
+                            st.markdown(f"**Keywords:** {doc['keywords'].iloc[idx]}")
+                        
+                        with col_b:
+                            st.metric("Similitud", f"{similitudes[idx]:.4f}")
+                        
+                        abstract_text = doc['abstract'].iloc[idx]
+                        if len(abstract_text) > 400:
+                            st.markdown(f"**Abstract:** {abstract_text[:400]}...")
+                        else:
+                            st.markdown(f"**Abstract:** {abstract_text}")
+                        
+                        st.divider()
+                        
+                        st.markdown("### Artículos Relacionados")
+                        recs = metodo_tfidf.recomendar_tfidf(idx, idx_top10)
+                        
+                        for j, (rec_idx, score) in enumerate(recs, 1):
+                            st.markdown(
+                                f"**{j}.** {doc['title'].iloc[rec_idx]} "
+                                f"<span class='similarity-score'>sim: {score:.4f}</span>",
+                                unsafe_allow_html=True
+                            )
                 
             except Exception as e:
                 st.error(f"Error en la búsqueda: {str(e)}")
@@ -306,14 +313,31 @@ with tab2:
             try:
                 idx_top10, similitudes, tiene_resultados, tiempo_ms, sugerencias = metodo_llm.buscar_llm(query_final_llm)
                 
-                if not tiene_resultados:
-                    st.warning("No se encontraron artículos relevantes para su consulta.")
+                # Mensaje de éxito/advertencia con tiempo
+                if tiene_resultados:
+                    st.markdown(
+                        f'<p style="color: #4CAF50; font-size: 1rem; margin-bottom: 0.5rem;">'
+                        f'✅ Se encontraron {len(idx_top10)} artículos relevantes '
+                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
+                        f'</p>',
+                        unsafe_allow_html=True
+                    )
+                else:
+                    # Baja calidad pero igual muestra resultados
+                    st.warning("⚠️ Los resultados pueden tener baja relevancia. Considera usar otras palabras clave.")
                     
-                    # Mostrar sugerencias como texto clickeable
+                    st.markdown(
+                        f'<p style="color: #FF9800; font-size: 0.9rem; margin-bottom: 0.5rem;">'
+                        f'Mostrando los {len(idx_top10)} documentos más cercanos '
+                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
+                        f'</p>',
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Mostrar sugerencias
                     if sugerencias:
                         st.info("**¿Quisiste decir?** Haz clic en una sugerencia para buscarla:")
                         
-                        # Crear botones que parecen texto
                         for i, sug in enumerate(sugerencias):
                             palabra_incorrecta = sug.split(" → ")[0] if " → " in sug else ""
                             palabra_sugerida = sug.split(" → ")[1] if " → " in sug else sug
@@ -322,55 +346,45 @@ with tab2:
                                        key=f"sug_llm_{i}", 
                                        use_container_width=False,
                                        type="secondary"):
-                                # Actualizar la búsqueda con la palabra sugerida
                                 st.session_state.ultima_busqueda_llm = palabra_sugerida
                                 st.session_state.desde_sugerencia_llm = True
                                 st.rerun()
-                else:
-                    doc = metodo_llm.get_dataset()
-                    
-                    # Mensaje de éxito con tiempo inline
-                    st.markdown(
-                        f'<p style="color: #4CAF50; font-size: 1rem; margin-bottom: 0.5rem;">'
-                        f'✅ Se encontraron {len(idx_top10)} artículos relevantes '
-                        f'<span class="time-badge">⏱️ {tiempo_ms:.2f} ms</span>'
-                        f'</p>',
-                        unsafe_allow_html=True
-                    )
-                    
-                    st.subheader("Top 10 Artículos Más Similares")
-                    
-                    for i, idx in enumerate(idx_top10, 1):
-                        with st.expander(
-                            f"**#{i}** - {doc['title'].iloc[idx]}", 
-                            expanded=False
-                        ):
-                            col_a, col_b = st.columns([3, 1])
-                            
-                            with col_a:
-                                st.markdown(f"**Título:** {doc['title'].iloc[idx]}")
-                                st.markdown(f"**Keywords:** {doc['keywords'].iloc[idx]}")
-                            
-                            with col_b:
-                                st.metric("Similitud", f"{similitudes[idx]:.4f}")
-                            
-                            abstract_text = doc['abstract'].iloc[idx]
-                            if len(abstract_text) > 400:
-                                st.markdown(f"**Abstract:** {abstract_text[:400]}...")
-                            else:
-                                st.markdown(f"**Abstract:** {abstract_text}")
-                            
-                            st.divider()
-                            
-                            st.markdown("### Artículos Relacionados")
-                            recs = metodo_llm.recomendar_llm(idx, idx_top10)
-                            
-                            for j, (rec_idx, score) in enumerate(recs, 1):
-                                st.markdown(
-                                    f"**{j}.** {doc['title'].iloc[rec_idx]} "
-                                    f"<span class='similarity-score'>sim: {score:.4f}</span>",
-                                    unsafe_allow_html=True
-                                )
+                
+                # SIEMPRE mostrar los 10 documentos
+                doc = metodo_llm.get_dataset()
+                st.subheader("Top 10 Artículos Más Similares")
+                
+                for i, idx in enumerate(idx_top10, 1):
+                    with st.expander(
+                        f"**#{i}** - {doc['title'].iloc[idx]}", 
+                        expanded=False
+                    ):
+                        col_a, col_b = st.columns([3, 1])
+                        
+                        with col_a:
+                            st.markdown(f"**Título:** {doc['title'].iloc[idx]}")
+                            st.markdown(f"**Keywords:** {doc['keywords'].iloc[idx]}")
+                        
+                        with col_b:
+                            st.metric("Similitud", f"{similitudes[idx]:.4f}")
+                        
+                        abstract_text = doc['abstract'].iloc[idx]
+                        if len(abstract_text) > 400:
+                            st.markdown(f"**Abstract:** {abstract_text[:400]}...")
+                        else:
+                            st.markdown(f"**Abstract:** {abstract_text}")
+                        
+                        st.divider()
+                        
+                        st.markdown("### Artículos Relacionados")
+                        recs = metodo_llm.recomendar_llm(idx, idx_top10)
+                        
+                        for j, (rec_idx, score) in enumerate(recs, 1):
+                            st.markdown(
+                                f"**{j}.** {doc['title'].iloc[rec_idx]} "
+                                f"<span class='similarity-score'>sim: {score:.4f}</span>",
+                                unsafe_allow_html=True
+                            )
                 
             except Exception as e:
                 st.error(f"Error en la búsqueda: {str(e)}")
@@ -405,18 +419,18 @@ with tab3:
                     st.caption(f"⏱️ {tiempo_tfidf:.2f} ms")
                     
                     if not tiene_resultados_tfidf:
-                        st.warning("Sin resultados relevantes")
+                        st.caption("⚠️ Baja relevancia")
                         if sugerencias_tfidf:
                             st.caption("**Sugerencias:**")
                             for sug in sugerencias_tfidf[:2]:
                                 st.caption(f"• {sug}")
-                    else:
-                        doc = metodo_tfidf.get_dataset()
-                        
-                        for i, idx in enumerate(idx_tfidf[:5], 1):
-                            st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
-                            st.caption(f"Similitud: {sim_tfidf[idx]:.4f}")
-                            st.divider()
+                    
+                    doc = metodo_tfidf.get_dataset()
+                    
+                    for i, idx in enumerate(idx_tfidf[:5], 1):
+                        st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
+                        st.caption(f"Similitud: {sim_tfidf[idx]:.4f}")
+                        st.divider()
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
         
@@ -431,38 +445,37 @@ with tab3:
                     st.caption(f"⏱️ {tiempo_llm:.2f} ms")
                     
                     if not tiene_resultados_llm:
-                        st.warning("Sin resultados relevantes")
+                        st.caption("⚠️ Baja relevancia")
                         if sugerencias_llm:
                             st.caption("**Sugerencias:**")
                             for sug in sugerencias_llm[:2]:
                                 st.caption(f"• {sug}")
-                    else:
-                        doc = metodo_llm.get_dataset()
-                        
-                        for i, idx in enumerate(idx_llm[:5], 1):
-                            st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
-                            st.caption(f"Similitud: {sim_llm[idx]:.4f}")
-                            st.divider()
+                    
+                    doc = metodo_llm.get_dataset()
+                    
+                    for i, idx in enumerate(idx_llm[:5], 1):
+                        st.markdown(f"**{i}.** {doc['title'].iloc[idx]}")
+                        st.caption(f"Similitud: {sim_llm[idx]:.4f}")
+                        st.divider()
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
         
         # Análisis de coincidencias
         if 'tiene_resultados_tfidf' in locals() and 'tiene_resultados_llm' in locals():
-            if tiene_resultados_tfidf and tiene_resultados_llm:
-                st.divider()
-                st.subheader("Análisis de Coincidencias")
-                
-                col_m1, col_m2, col_m3 = st.columns(3)
-                with col_m1:
-                    st.metric("Tiempo TF-IDF", f"{tiempo_tfidf:.0f} ms")
-                with col_m2:
-                    st.metric("Tiempo LLM", f"{tiempo_llm:.0f} ms")
-                with col_m3:
-                    coincidencias = set(idx_tfidf) & set(idx_llm)
-                    st.metric("Coincidencias", len(coincidencias))
-                
-                if coincidencias:
-                    st.success(f"Hay {len(coincidencias)} artículos en común")
+            st.divider()
+            st.subheader("Análisis de Coincidencias")
+            
+            col_m1, col_m2, col_m3 = st.columns(3)
+            with col_m1:
+                st.metric("Tiempo TF-IDF", f"{tiempo_tfidf:.0f} ms")
+            with col_m2:
+                st.metric("Tiempo LLM", f"{tiempo_llm:.0f} ms")
+            with col_m3:
+                coincidencias = set(idx_tfidf) & set(idx_llm)
+                st.metric("Coincidencias", len(coincidencias))
+            
+            if coincidencias:
+                st.success(f"Hay {len(coincidencias)} artículos en común")
     
     elif btn_compare:
         st.warning("Por favor ingrese una consulta")

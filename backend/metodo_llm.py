@@ -162,20 +162,20 @@ def inicializar_llm(csv_path='data/ICMLA_2014_2015_2016_2017.csv'):
         
         return "✅ Embeddings LLM cargados exitosamente", True
 
-def buscar_llm(query, threshold_minimo=0.05):
+def buscar_llm(query, threshold_minimo=0.15):
     """
     Busca los Top 10 artículos más similares usando embeddings LLM
     
     Args:
         query (str): Consulta del usuario
-        threshold_minimo (float): Similitud mínima para considerar que hay resultados (default: 0.05)
+        threshold_minimo (float): Similitud mínima para considerar resultados de calidad (default: 0.15)
         
     Returns:
         tuple: (idx_top10, similitudes, tiene_resultados, tiempo_ms, sugerencias)
     """
     global model, embeddings
     
-    inicio = time.time()  # Iniciar cronómetro
+    inicio = time.time()
     
     # Generar embedding de la query
     query_vec = model.encode([query], normalize_embeddings=True)[0]
@@ -183,21 +183,22 @@ def buscar_llm(query, threshold_minimo=0.05):
     # Calcular similitud con todos los documentos
     similitudes = cosine_similarity([query_vec], embeddings)[0]
     
-    # Top 10 (siempre los 10 mejores)
+    # SIEMPRE devolver Top 10
     idx_top10 = np.argsort(similitudes)[-10:][::-1]
     
-    # Verificar si el MEJOR resultado supera el threshold mínimo
+    # Verificar si el MEJOR resultado supera el threshold
     mejor_similitud = similitudes[idx_top10[0]]
     
-    tiempo_ms = (time.time() - inicio) * 1000  # Convertir a milisegundos
+    tiempo_ms = (time.time() - inicio) * 1000
     
+    # Si el mejor resultado es malo, generar sugerencias PERO IGUAL DEVOLVER LOS 10
     if mejor_similitud < threshold_minimo:
-        # Generar sugerencias
         sugerencias = sugerir_palabras(query)
-        return np.array([]), similitudes, False, tiempo_ms, sugerencias
+        return idx_top10, similitudes, False, tiempo_ms, sugerencias  # False = baja calidad
     
-    # Hay al menos un resultado decente, retornar los 10 mejores
+    # Resultados de buena calidad
     return idx_top10, similitudes, True, tiempo_ms, []
+
 
 def recomendar_llm(idx_articulo, idx_top10):
     """
