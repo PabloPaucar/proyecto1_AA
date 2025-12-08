@@ -274,14 +274,14 @@ def buscar_tfidf(query, threshold_minimo=0.03):
     
     Args:
         query (str): Consulta del usuario
-        threshold_minimo (float): Similitud mínima aceptable (default: 0.03)
+        threshold_minimo (float): Similitud mínima para considerar resultados de calidad
         
     Returns:
         tuple: (idx_top10, sim_query_final, tiene_resultados, tiempo_ms, sugerencias)
     """
     global vectors_abs, idf_abs, vocab_abs, keywords_tokens, titulos_tokens
     
-    inicio = time.time()  # Iniciar cronómetro
+    inicio = time.time()
     
     # Procesar query
     query_abs = procesar_nlp([query])[0]
@@ -305,21 +305,31 @@ def buscar_tfidf(query, threshold_minimo=0.03):
         0.15 * sim_query_tit
     )
     
-    # Top 10 (siempre los 10 mejores)
+    # SIEMPRE devolver Top 10
     idx_top10 = np.argsort(sim_query_final)[-10:][::-1]
     
-    # Verificar si el MEJOR resultado supera el threshold mínimo
+    # Verificar similitud del MEJOR resultado
     mejor_similitud = sim_query_final[idx_top10[0]]
     
-    tiempo_ms = (time.time() - inicio) * 1000  # Convertir a milisegundos
+    tiempo_ms = (time.time() - inicio) * 1000
     
+    # ============================================
+    # NUEVO: CHEQUEO INDEPENDIENTE DE ORTOGRAFÍA
+    # ============================================
+    sugerencias_ortografia = sugerir_palabras(query)
+    
+    # Si hay errores ortográficos, SIEMPRE sugerir
+    if sugerencias_ortografia:
+        tiene_calidad = mejor_similitud >= threshold_minimo
+        return idx_top10, sim_query_final, tiene_calidad, tiempo_ms, sugerencias_ortografia
+    
+    # Si NO hay errores pero similitud es baja
     if mejor_similitud < threshold_minimo:
-        # Generar sugerencias
-        sugerencias = sugerir_palabras(query)
-        return np.array([]), sim_query_final, False, tiempo_ms, sugerencias
+        return idx_top10, sim_query_final, False, tiempo_ms, []
     
-    # Hay al menos un resultado decente, retornar los 10 mejores
+    # Todo bien
     return idx_top10, sim_query_final, True, tiempo_ms, []
+
 
 def recomendar_tfidf(idx_articulo, idx_top10):
     """

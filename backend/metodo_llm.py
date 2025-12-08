@@ -168,7 +168,7 @@ def buscar_llm(query, threshold_minimo=0.15):
     
     Args:
         query (str): Consulta del usuario
-        threshold_minimo (float): Similitud mínima para considerar resultados de calidad (default: 0.15)
+        threshold_minimo (float): Similitud mínima para considerar resultados de calidad
         
     Returns:
         tuple: (idx_top10, similitudes, tiene_resultados, tiempo_ms, sugerencias)
@@ -186,18 +186,32 @@ def buscar_llm(query, threshold_minimo=0.15):
     # SIEMPRE devolver Top 10
     idx_top10 = np.argsort(similitudes)[-10:][::-1]
     
-    # Verificar si el MEJOR resultado supera el threshold
+    # Verificar similitud del MEJOR resultado
     mejor_similitud = similitudes[idx_top10[0]]
     
     tiempo_ms = (time.time() - inicio) * 1000
     
-    # Si el mejor resultado es malo, generar sugerencias PERO IGUAL DEVOLVER LOS 10
-    if mejor_similitud < threshold_minimo:
-        sugerencias = sugerir_palabras(query)
-        return idx_top10, similitudes, False, tiempo_ms, sugerencias  # False = baja calidad
+    # ============================================
+    # NUEVO: CHEQUEO INDEPENDIENTE DE ORTOGRAFÍA
+    # ============================================
+    sugerencias_ortografia = sugerir_palabras(query)
     
-    # Resultados de buena calidad
+    # Si hay errores ortográficos, SIEMPRE sugerir
+    # (sin importar la similitud)
+    if sugerencias_ortografia:
+        # Determinar si calidad es baja ADEMÁS del error
+        tiene_calidad = mejor_similitud >= threshold_minimo
+        return idx_top10, similitudes, tiene_calidad, tiempo_ms, sugerencias_ortografia
+    
+    # Si NO hay errores pero similitud es baja
+    if mejor_similitud < threshold_minimo:
+        # Aquí podrías sugerir frases del corpus
+        # (como discutimos antes)
+        return idx_top10, similitudes, False, tiempo_ms, []
+    
+    # Todo bien: buena ortografía Y buena similitud
     return idx_top10, similitudes, True, tiempo_ms, []
+
 
 
 def recomendar_llm(idx_articulo, idx_top10):
